@@ -65,16 +65,14 @@
 
 		<!-- servings input -->
 		<div class="row info panel-body vertical-align">
-			<div class="col-xs-4 col-lg-2 info-addon">
-				<span class="empty">Servings</span>
+			<div class="col-xs-5 col-sm-3 col-lg-1 info-addon">
+				<span>Servings</span>
 			</div>
-			<div class="col-xs-3 col-lg-1 info-value">
-				<span class="empty">{{coffeeController.getServings()}}</span>
+			<div class="col-xs-4 col-sm-2 col-lg-3 info-value">
+				<span>{{coffeeController.getServings()}} cups</span>
 			</div>
-			<div class="col-xs-2 col-lg-1 info-addon">
-				<span class="empty">cups</span>
-			</div>
-			<div class="col-xs-3 col-lg-1 info-button-group btn-group-vertical" data-toggle="tooltip" data-trigger="hover focus" title="Adjust amount of servings.">
+			
+			<div class="col-xs-3 col-sm-2 col-lg-1 info-button-group btn-group-vertical" data-toggle="tooltip" data-trigger="hover focus" title="Adjust amount of servings.">
 				<button ng-click="coffeeController.addToServings(1)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-up"></span></button>
 				<button ng-click="coffeeController.addToServings(-1)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-down"></span></button>
 			</div>
@@ -82,16 +80,14 @@
 
 		<!-- coffee input -->
 		<div class="row info panel-body vertical-align">
-			<div class="col-xs-4 col-lg-2 info-addon">
-				<span class="empty">Coffee</span>
+			<div class="col-xs-4 col-sm-3 col-lg-1 info-addon">
+				<span>Coffee</span>
 			</div>
-			<div class="col-xs-3 col-lg-1 info-value">
-				<span class="empty">{{coffeeController.coffeeWeight}}</span>
+			<div class="col-xs-5 col-sm-2 col-lg-3 info-value">
+				<span>{{coffeeController.coffeeWeight}} g</span>
 			</div>
-			<div class="col-xs-2 col-lg-1 info-addon">
-				<span class="empty">g</span>
-			</div>
-			<div class="col-xs-3 col-lg-1 info-button-group btn-group-vertical" data-toggle="tooltip" data-trigger="hover focus" title="Adjust amount of coffee in grams.">
+			
+			<div class="col-xs-3 col-sm-2 col-lg-1 info-button-group btn-group-vertical" data-toggle="tooltip" data-trigger="hover focus" title="Adjust amount of coffee in grams.">
 					<button ng-click="coffeeController.addToCoffeeWeight(1)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-up"></span></button>
 					<button ng-click="coffeeController.addToCoffeeWeight(-1)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-down"></span></button>
 			</div>
@@ -100,16 +96,14 @@
 
 		<!-- water input -->
 		<div class="row info panel-body vertical-align">
-			<div class="col-xs-4 col-lg-2 info-addon">
-				<span class="empty">Water</span>
+			<div class="col-xs-4 col-sm-3 col-lg-1 info-addon">
+				<span>Water</span>
 			</div>
-			<div class="col-xs-3 col-lg-1 info-value">
-				<span class="empty">{{coffeeController.getWaterWeight()}}</span>
+			<div class="col-xs-5 col-sm-2 col-lg-3 info-value">
+				<span>{{coffeeController.getWaterWeight()}} g</span>
 			</div>
-			<div class="col-xs-2 col-lg-1 info-addon">
-				<span class="empty">g</span>
-			</div>
-			<div class="col-xs-3 col-lg-1 info-button-group btn-group-vertical" data-toggle="tooltip" data-trigger="hover focus" title="Adjust amount of water in grams.">
+
+			<div class="col-xs-3 col-sm-2 col-lg-1 info-button-group btn-group-vertical" data-toggle="tooltip" data-trigger="hover focus" title="Adjust amount of water in grams.">
 					<button ng-click="coffeeController.addToCoffeeWeight(coffeeController.selectedCoffeeType.waterMultiplier)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-up"></span></button>
 					<button ng-click="coffeeController.addToCoffeeWeight(-coffeeController.selectedCoffeeType.waterMultiplier)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-down"></span></button>
 			</div>
