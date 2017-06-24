@@ -110,6 +110,22 @@
 			
 		</div>
 
+		<!-- timer -->
+		<div class="row info panel-body vertical-align">
+			<div class="col-xs-4 col-sm-3 col-lg-1 info-addon">
+				<span>Timer</span>
+			</div>
+			<div class="col-xs-5 col-sm-2 col-lg-3 info-value">
+				<span>{{countDown | secondsToDateTime | date:'mm:ss'}}</span>
+			</div>
+			<div class="col-xs-3 col-sm-2 col-lg-1 info-button-group btn-group btn-group-sm">
+				<button ng-click="startTimer()" class="btn btn-primary timer-button"><span class="glyphicon glyphicon-play"></span></button>
+				<!--<button ng-click="pauseTimer()" class="btn btn-primary"><span class="glyphicon glyphicon-pause"></span></button>-->
+				<button ng-click="resetTimer()" class="btn btn-primary timer-button"><span class="glyphicon glyphicon-refresh"></span></button>
+			</div>
+			
+		</div>
+
 		<!-- coffee type selector buttons -->
 		<div class="row info panel-body vertical-align">
 		<!-- no columns; to get centered buttons -->

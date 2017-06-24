@@ -30,3 +30,7 @@
     float: none;
     margin: 0 10px;
 }
+
+.timer-button {
+    width:50%;
+}
