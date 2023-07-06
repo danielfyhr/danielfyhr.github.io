@@ -1,0 +1,143 @@
+<!doctype html>
+<html ng-app="coffeescale" lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>CoffeeScale</title>
+
+	<link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-touch-icon.png">
+	<link rel="icon" type="image/png" href="favicon/favicon-32x32.png" sizes="32x32">
+	<link rel="icon" type="image/png" href="favicon/favicon-16x16.png" sizes="16x16">
+	<link rel="manifest" href="favicon/manifest.json">
+	<link rel="mask-icon" href="favicon/safari-pinned-tab.svg" color="#5bbad5">
+	<meta name="theme-color" content="#211608">
+	
+	<script src="js/angular.min.js"></script>
+	<script src="js/coffeescale.js"></script>
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+	<script src="bootstrap/js/bootstrap.min.js"></script>
+
+	<link rel="stylesheet" type="text/css" href="bootstrap/css/bootstrap.min.css">
+	<link rel="stylesheet" type="text/css" href="bootstrap/css/bootstrap-theme.min.css">
+	<link rel="stylesheet" type="text/css" href="css/coffeeStyle.css">
+
+</head>
+<body ng-cloak>
+
+	<div ng-controller="CoffeeController as coffeeController" class="container panel panel-default grey">
+		
+		<!-- header and description-->
+		<div class="row panel-heading">
+			<div class="col-xs-12">
+				<button type="button" class="btn btn-info btn-lg pull-right" data-toggle="modal" data-target="#modalDescription"><span class="glyphicon glyphicon-question-sign pull-right"></span></button>
+				<h1>CoffeeScale</h1>
+
+				<!-- Modal -->
+				<div class="modal fade" id="modalDescription" role="dialog">
+					<div class="modal-dialog">
+						<!-- Modal content-->
+						<div class="modal-content">
+							<div class="modal-header">
+								<button type="button" class="close" data-dismiss="modal">&times;</button>
+								<h4 class="modal-title">Description</h4>
+							</div>
+							<div class="modal-body">
+								<p>Enter the amount of coffee grind you want to use. The correct amount of water is displayed. You can select different types of coffee, and they have different coffee-to-water ratios.</p>
+
+								<div ng-repeat="coffeeType in coffeeController.coffeeTypes" class="coffeeDescription">
+									<h2>{{coffeeType.name}}</h2>
+									<span ng-bind-html="coffeeType.description | sanitize"></span>
+									<!--<p>{{coffeeType.description}}</p>-->
+								</div>
+
+							</div>
+							<!--
+							<div class="modal-footer">
+								<p>hello world</p>
+							</div>
+							-->
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+
+		<!-- servings input -->
+		<div class="row info panel-body vertical-align">
+			<div class="col-xs-5 col-sm-3 col-lg-1 info-addon">
+				<span>Servings</span>
+			</div>
+			<div class="col-xs-4 col-sm-2 col-lg-3 info-value">
+				<span>{{coffeeController.getServings()}} cups</span>
+			</div>
+			
+			<div class="col-xs-3 col-sm-2 col-lg-1 info-button-group btn-group-vertical" data-toggle="tooltip" data-trigger="hover focus" title="Adjust amount of servings.">
+				<button ng-click="coffeeController.addToServings(1)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-up"></span></button>
+				<button ng-click="coffeeController.addToServings(-1)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-down"></span></button>
+			</div>
+		</div>
+
+		<!-- coffee input -->
+		<div class="row info panel-body vertical-align">
+			<div class="col-xs-4 col-sm-3 col-lg-1 info-addon">
+				<span>Coffee</span>
+			</div>
+			<div class="col-xs-5 col-sm-2 col-lg-3 info-value">
+				<span>{{coffeeController.coffeeWeight}} g</span>
+			</div>
+			
+			<div class="col-xs-3 col-sm-2 col-lg-1 info-button-group btn-group-vertical" data-toggle="tooltip" data-trigger="hover focus" title="Adjust amount of coffee in grams.">
+					<button ng-click="coffeeController.addToCoffeeWeight(1)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-up"></span></button>
+					<button ng-click="coffeeController.addToCoffeeWeight(-1)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-down"></span></button>
+			</div>
+		</div>
+
+
+		<!-- water input -->
+		<div class="row info panel-body vertical-align">
+			<div class="col-xs-4 col-sm-3 col-lg-1 info-addon">
+				<span>Water</span>
+			</div>
+			<div class="col-xs-5 col-sm-2 col-lg-3 info-value">
+				<span>{{coffeeController.getWaterWeight()}} g</span>
+			</div>
+
+			<div class="col-xs-3 col-sm-2 col-lg-1 info-button-group btn-group-vertical" data-toggle="tooltip" data-trigger="hover focus" title="Adjust amount of water in grams.">
+					<button ng-click="coffeeController.addToCoffeeWeight(10)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-up"></span></button>
+					<button ng-click="coffeeController.addToCoffeeWeight(-10)" class="btn btn-primary"><span class="glyphicon glyphicon-chevron-down"></span></button>
+			</div>
+			
+		</div>
+
+		<!-- timer -->
+		<div class="row info panel-body vertical-align">
+			<div class="col-xs-4 col-sm-3 col-lg-1 info-addon">
+				<span>Timer</span>
+			</div>
+			<div class="col-xs-5 col-sm-2 col-lg-3 info-value">
+				<span>{{countDown | secondsToDateTime | date:'mm:ss'}}</span>
+			</div>
+			<div class="col-xs-3 col-sm-2 col-lg-1 info-button-group btn-group btn-group-sm">
+				<button ng-click="startTimer()" class="btn btn-primary timer-button"><span class="glyphicon glyphicon-play"></span></button>
+				<!--<button ng-click="pauseTimer()" class="btn btn-primary"><span class="glyphicon glyphicon-pause"></span></button>-->
+				<button ng-click="resetTimer()" class="btn btn-primary timer-button"><span class="glyphicon glyphicon-refresh"></span></button>
+			</div>
+			
+		</div>
+
+		<!-- coffee type selector buttons -->
+		<div class="row info panel-body vertical-align">
+		<!-- no columns; to get centered buttons -->
+				<div class="btn-group center-block">
+					<button ng-repeat="coffeeType in coffeeController.coffeeTypes" ng-click="coffeeController.selectCoffeeType(coffeeType)" ng-class="{ active: coffeeController.coffeeTypeIsSelected(coffeeType)}" class="btn btn-primary">{{coffeeType.name}}</button>
+				</div>
+		</div>
+	</div>
+
+    <!-- Tooltipery -->
+    <script>$(document).ready(function(){$('[data-toggle="tooltip"]').tooltip();});</script>
+
+</body>
+
+</html>
