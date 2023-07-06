@@ -1,0 +1,30 @@
+
+#keyboard {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+
+.key {
+  cursor: pointer;
+  border: 1px solid #000;
+  height: 100px;
+  width: 50px;
+  display: inline-block;
+  background-color: #fff;
+  margin: 1px;
+}
+
+.key.black {
+  background-color: #666666;
+  color: #fff;
+}
+
+.key:active {
+  background-color: #ddd;
+}
+
+.key.black:active {
+  background-color: #444;
+}
