@@ -124,6 +124,22 @@
                 <label for="houseDrift">Driftkostnad / mån (valfritt)</label>
                 <input type="number" id="houseDrift" min="0" step="100" class="optional" placeholder="0">
             </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="houseSqm">Lägenhet (kvm, valfritt)</label>
+                <input type="number" id="houseSqm" min="0" step="1" class="optional" placeholder="t.ex. 135">
+            </div>
+            <div class="form-group">
+                <label for="houseBrfDebt">Förening lån/kvm (kr, valfritt)</label>
+                <input type="number" id="houseBrfDebt" min="0" step="100" class="optional" placeholder="t.ex. 13000">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Övrigt / mån (valfritt)</label>
+                <input type="number" id="houseOther" min="0" step="100" class="optional" placeholder="0">
+            </div>
             <button class="btn btn-primary" onclick="addHouse()" style="align-self:end;">💾 Spara bostad</button>
         </div>
         <p class="note" id="formNote"></p>
@@ -135,8 +151,6 @@
     </div>
 
     <div id="summarySection" class="hidden">
-        <h2>Sammanfattning</h2>
-        <div class="summary" id="summaryCards"></div>
     </div>
 
     <div id="chartsSection" class="hidden">
@@ -158,6 +172,7 @@
                         <th>Ränta</th>
                         <th>Belåning</th>
                         <th>Amortering (%/år)</th>
+                        <th>Föreningslån (kr)</th>
                         <th>Månadskostnad (kr)</th>
                         <th>Varav ränta</th>
                         <th>Varav amortering</th>
@@ -193,6 +208,9 @@ function calcHouse(d) {
     const ltv = d.ltv;
     const brf = d.brf || 0;
     const drift = d.drift || 0;
+    const sqm = d.sqm || 0;
+    const brfDebt = d.brfDebt || 0;
+    const other = d.other || 0;
     const customAmortPct = d.customAmortPct !== undefined ? d.customAmortPct : null;
 
     const loan = price * (ltv / 100);
@@ -218,13 +236,16 @@ function calcHouse(d) {
         interestMonth = loan * (rate / 100 / 12);
         amortMonth = monthCost - interestMonth;
     }
-    const totalPaid = (monthCost + brf + drift) * LOAN_TERM_MONTHS;
-    const totalInterest = monthCost * LOAN_TERM_MONTHS - loan;
+    const brfDebtShare = sqm * brfDebt;
+    const brfInterestMonth = brfDebtShare * (rate / 100 / 12);
+    const totalPaid = (monthCost + brf + drift + brfInterestMonth + other) * LOAN_TERM_MONTHS;
+    const totalInterest = monthCost * LOAN_TERM_MONTHS - loan + brfInterestMonth * LOAN_TERM_MONTHS;
     const requiredAmortPct = ltv > 70 ? 2 : ltv > 50 ? 1 : 0;
     return {
-        name: d.name, price, ltv, brf, drift, customAmortPct,
+        name: d.name, price, ltv, brf, drift, sqm, brfDebt, other, customAmortPct,
         loan, down, monthCost, interestMonth, amortMonth,
-        brfMonth: brf, driftMonth: drift,
+        brfMonth: brf, driftMonth: drift, brfDebtShare, brfInterestMonth,
+        otherMonth: other,
         totalPaid, totalInterest, rate,
         amortPct: (amortPct * 100).toFixed(2), requiredAmortPct
     };
@@ -253,13 +274,15 @@ function render() {
 
     $('houseName').placeholder = `Bostad ${houses.length + 1}`;
 
-    const list = $('houseList');
+const list = $('houseList');
     list.innerHTML = '';
     houses.forEach((h, i) => {
         const c = calcHouse(h);
         const extras = [];
         if (c.brfMonth > 0) extras.push(`BRF ${fmt(c.brfMonth)}`);
         if (c.driftMonth > 0) extras.push(`Drift ${fmt(c.driftMonth)}`);
+        if (c.brfDebtShare > 0) extras.push(`Andel föreningslån ${fmt(c.brfDebtShare)}`);
+        if (c.otherMonth > 0) extras.push(`Övrigt ${fmt(c.otherMonth)}`);
         const extraStr = extras.length ? extras.join(' · ') : '<span style="color:#aaa">Inga extra kostnader</span>';
         const currentAmort = c.customAmortPct !== null ? c.customAmortPct : c.requiredAmortPct;
         const warnStr = c.requiredAmortPct > 0 && currentAmort < c.requiredAmortPct
@@ -275,8 +298,8 @@ function render() {
                 <div class="stat">${extraStr}</div>
             </div>
             <div class="costs">
-                <div class="big">${fmt(c.monthCost + c.brfMonth + c.driftMonth)} kr/mån</div>
-                <div class="small">ränta ${fmt(c.interestMonth)} · amortering ${fmt(c.amortMonth)}</div>
+                <div class="big">${fmt(c.monthCost + c.brfMonth + c.driftMonth + c.brfInterestMonth + c.otherMonth)} kr/mån</div>
+                <div class="small">ränta ${fmt(c.interestMonth)} · amortering ${fmt(c.amortMonth)}${c.brfInterestMonth > 0 ? ' · förening ' + fmt(c.brfInterestMonth) : ''}</div>
                 <div class="amort-row">
                     <label>Amortering:</label>
                     <input type="range" min="0" max="100" step="0.5" value="${currentAmort}" data-idx="${i}" data-amort>
@@ -290,41 +313,11 @@ function render() {
     });
     $('housesSection').classList.toggle('hidden', houses.length === 0);
 
-    const sum = $('summaryCards');
-    sum.innerHTML = '';
-    if (houses.length >= 1) {
-        const all = houses.map(h => calcHouse(h));
-        const totalMonth = all.reduce((s, c) => s + c.monthCost + c.brfMonth + c.driftMonth, 0);
-        const totalLoan = all.reduce((s, c) => s + c.loan, 0);
-        const totalPrice = all.reduce((s, c) => s + c.price, 0);
-        const totalInterest = all.reduce((s, c) => s + c.totalInterest, 0);
-        const totalBrf = all.reduce((s, c) => s + c.brfMonth, 0);
-        const totalDrift = all.reduce((s, c) => s + c.driftMonth, 0);
-
-        [
-            ['Totalt antal bostäder', houses.length, '#1d1d1f'],
-            ['Sammanlagt pris', fmt(totalPrice) + ' kr', '#30d158'],
-            ['Sammanlagt lån', fmt(totalLoan) + ' kr', '#0071e3'],
-            ['Månadskostnad (låneränta)', fmt(totalMonth) + ' kr/mån', '#ff9500'],
-            ['Sammanlagd BRF-avgift', fmt(totalBrf) + ' kr/mån', '#64d2ff'],
-            ['Sammanlagd driftkostnad', fmt(totalDrift) + ' kr/mån', '#af52de'],
-            ['Total räntekostnad (50 år)', fmt(totalInterest) + ' kr', '#ff3b30'],
-        ].forEach(([label, value, color]) => {
-            const d = document.createElement('div');
-            d.className = 'summary-card';
-            d.innerHTML = `<div class="label">${label}</div><div class="value" style="color:${color}">${value}</div>`;
-            sum.appendChild(d);
-        });
-        $('summarySection').classList.remove('hidden');
-    } else {
-        $('summarySection').classList.add('hidden');
-    }
-
     const tbody = $('detailBody');
     tbody.innerHTML = '';
     houses.forEach(h => {
         const c = calcHouse(h);
-        const extras = `${c.brfMonth > 0 ? fmt(c.brfMonth) : '—'} / ${c.driftMonth > 0 ? fmt(c.driftMonth) : '—'}`;
+        const extras = `${c.brfMonth > 0 ? fmt(c.brfMonth) : '—'} / ${c.driftMonth > 0 ? fmt(c.driftMonth) : '—'} / ${c.otherMonth > 0 ? fmt(c.otherMonth) : '—'}`;
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${c.name}</td>
@@ -334,7 +327,8 @@ function render() {
             <td>${c.rate.toFixed(1)} %</td>
             <td>${c.ltv} %</td>
             <td>${c.customAmortPct !== null ? c.customAmortPct : '—'}</td>
-            <td><strong>${fmt(c.monthCost + c.brfMonth + c.driftMonth)}</strong></td>
+            <td>${c.brfDebtShare > 0 ? fmt(c.brfDebtShare) : '—'}</td>
+            <td><strong>${fmt(c.monthCost + c.brfMonth + c.driftMonth + c.brfInterestMonth + c.otherMonth)}</strong></td>
             <td>${fmt(c.interestMonth)}</td>
             <td>${fmt(c.amortMonth)}</td>
             <td>${extras}</td>
@@ -364,6 +358,8 @@ function render() {
                     { label: 'Amortering/månad', data: all.map(c => Math.round(c.amortMonth)), backgroundColor: colors[1] + '99', borderColor: colors[1], borderWidth: 1 },
                     { label: 'BRF-avgift/månad', data: all.map(c => Math.round(c.brfMonth)), backgroundColor: colors[4] + '99', borderColor: colors[4], borderWidth: 1 },
                     { label: 'Driftkostnad/månad', data: all.map(c => Math.round(c.driftMonth)), backgroundColor: colors[5] + '99', borderColor: colors[5], borderWidth: 1 },
+                    { label: 'Föreningslån ränta/månad', data: all.map(c => Math.round(c.brfInterestMonth)), backgroundColor: '#ff9f0a99', borderColor: '#ff9f0a', borderWidth: 1 },
+                    { label: 'Övrigt/månad', data: all.map(c => Math.round(c.otherMonth)), backgroundColor: '#8e8e9399', borderColor: '#8e8e93', borderWidth: 1 },
                 ]
             },
             options: {
@@ -397,11 +393,14 @@ function addHouse() {
     const ltv = parseFloat($('houseLtv').value);
     const brf = parseFloat($('houseBrf').value) || 0;
     const drift = parseFloat($('houseDrift').value) || 0;
+    const sqm = parseFloat($('houseSqm').value) || 0;
+    const brfDebt = parseFloat($('houseBrfDebt').value) || 0;
+    const other = parseFloat($('houseOther').value) || 0;
 
     if (isNaN(price) || price <= 0) { $('housePrice').focus(); return; }
     if (isNaN(ltv) || ltv < 0 || ltv > 100) { $('houseLtv').focus(); return; }
 
-    houses.push({ name: name || `Bostad ${houses.length + 1}`, price, ltv, brf, drift });
+    houses.push({ name: name || `Bostad ${houses.length + 1}`, price, ltv, brf, drift, sqm, brfDebt, other });
 
     localStorage.setItem('boendekostnad_houses', JSON.stringify(houses));
     updateLtvPreview();
@@ -427,6 +426,9 @@ $('houseLtv').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse
 $('houseName').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
 $('houseBrf').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
 $('houseDrift').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
+$('houseSqm').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
+$('houseBrfDebt').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
+$('houseOther').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
 
 interestRate = parseFloat(localStorage.getItem('boendekostnad_interest') || '4.5');
 houses = JSON.parse(localStorage.getItem('boendekostnad_houses') || '[]');
