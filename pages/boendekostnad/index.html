@@ -48,6 +48,11 @@
         .house-card .costs { text-align: right; }
         .house-card .costs .big { font-size: 1.35rem; font-weight: 700; color: #1d1d1f; }
         .house-card .costs .small { font-size: .82rem; color: #666; }
+        .house-card .actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+        .house-card .amort-row { display: flex; align-items: center; gap: 6px; }
+        .house-card .amort-row label { font-size: .78rem; color: #888; }
+        .house-card .amort-row input[type=range] { width: 90px; accent-color: #0071e3; }
+        .house-card .amort-warn { font-size: .75rem; color: #ff9500; font-weight: 600; }
 
         .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
         .summary-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); text-align: center; }
@@ -151,6 +156,8 @@
                         <th>Lån (kr)</th>
                         <th>Insats (kr)</th>
                         <th>Ränta</th>
+                        <th>Belåning</th>
+                        <th>Amortering (%/år)</th>
                         <th>Månadskostnad (kr)</th>
                         <th>Varav ränta</th>
                         <th>Varav amortering</th>
@@ -186,26 +193,40 @@ function calcHouse(d) {
     const ltv = d.ltv;
     const brf = d.brf || 0;
     const drift = d.drift || 0;
+    const customAmortPct = d.customAmortPct !== undefined ? d.customAmortPct : null;
 
     const loan = price * (ltv / 100);
     const down = price - loan;
+    let amortPct;
+    if (customAmortPct !== null) {
+        amortPct = customAmortPct / 100;
+    } else if (ltv > 70) {
+        amortPct = 0.02;
+    } else if (ltv > 50) {
+        amortPct = 0.01;
+    } else {
+        amortPct = 0;
+    }
+    const amortMonths = loan > 0 && amortPct > 0 ? loan / (loan * amortPct / 12) : LOAN_TERM_MONTHS;
     let monthCost, interestMonth, amortMonth;
     if (rate === 0) {
-        monthCost = loan / LOAN_TERM_MONTHS;
+        monthCost = loan / amortMonths;
         interestMonth = 0;
         amortMonth = monthCost;
     } else {
-        monthCost = monthlyPayment(loan, rate, LOAN_TERM_MONTHS);
+        monthCost = monthlyPayment(loan, rate, amortMonths);
         interestMonth = loan * (rate / 100 / 12);
         amortMonth = monthCost - interestMonth;
     }
     const totalPaid = (monthCost + brf + drift) * LOAN_TERM_MONTHS;
     const totalInterest = monthCost * LOAN_TERM_MONTHS - loan;
+    const requiredAmortPct = ltv > 70 ? 2 : ltv > 50 ? 1 : 0;
     return {
-        name: d.name, price, ltv, brf, drift,
+        name: d.name, price, ltv, brf, drift, customAmortPct,
         loan, down, monthCost, interestMonth, amortMonth,
         brfMonth: brf, driftMonth: drift,
-        totalPaid, totalInterest, rate
+        totalPaid, totalInterest, rate,
+        amortPct: (amortPct * 100).toFixed(2), requiredAmortPct
     };
 }
 
@@ -240,6 +261,10 @@ function render() {
         if (c.brfMonth > 0) extras.push(`BRF ${fmt(c.brfMonth)}`);
         if (c.driftMonth > 0) extras.push(`Drift ${fmt(c.driftMonth)}`);
         const extraStr = extras.length ? extras.join(' · ') : '<span style="color:#aaa">Inga extra kostnader</span>';
+        const currentAmort = c.customAmortPct !== null ? c.customAmortPct : c.requiredAmortPct;
+        const warnStr = c.requiredAmortPct > 0 && currentAmort < c.requiredAmortPct
+            ? `<span class="amort-warn">⚠ Minst ${c.requiredAmortPct}% krävs</span>`
+            : '';
         const div = document.createElement('div');
         div.className = 'house-card';
         div.innerHTML = `
@@ -252,6 +277,12 @@ function render() {
             <div class="costs">
                 <div class="big">${fmt(c.monthCost + c.brfMonth + c.driftMonth)} kr/mån</div>
                 <div class="small">ränta ${fmt(c.interestMonth)} · amortering ${fmt(c.amortMonth)}</div>
+                <div class="amort-row">
+                    <label>Amortering:</label>
+                    <input type="range" min="0" max="100" step="0.5" value="${currentAmort}" data-idx="${i}" data-amort>
+                    <span>${currentAmort}%</span>
+                    ${warnStr}
+                </div>
             </div>
             <button class="btn btn-danger" onclick="removeHouse(${i})">✕</button>
         `;
@@ -301,6 +332,8 @@ function render() {
             <td>${fmt(c.loan)}</td>
             <td>${fmt(c.down)}</td>
             <td>${c.rate.toFixed(1)} %</td>
+            <td>${c.ltv} %</td>
+            <td>${c.customAmortPct !== null ? c.customAmortPct : '—'}</td>
             <td><strong>${fmt(c.monthCost + c.brfMonth + c.driftMonth)}</strong></td>
             <td>${fmt(c.interestMonth)}</td>
             <td>${fmt(c.amortMonth)}</td>
@@ -405,6 +438,20 @@ houses = JSON.parse(localStorage.getItem('boendekostnad_houses') || '[]');
 updateLtvPreview();
 render();
 $('housePrice').focus();
+
+document.addEventListener('input', e => {
+    if (e.target.matches('[data-amort]')) {
+        const idx = parseInt(e.target.dataset.idx);
+        const val = parseFloat(e.target.value);
+        const span = e.target.nextElementSibling;
+        if (span) span.textContent = val.toFixed(1).replace('.', ',') + '%';
+        if (!isNaN(val) && val >= 0) {
+            houses[idx].customAmortPct = val;
+            localStorage.setItem('boendekostnad_houses', JSON.stringify(houses));
+            render();
+        }
+    }
+});
 </script>
 </body>
 </html>
