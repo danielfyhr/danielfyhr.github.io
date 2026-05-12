@@ -404,14 +404,9 @@ function addHouse() {
     houses.push({ name: name || `Bostad ${houses.length + 1}`, price, ltv, brf, drift });
 
     localStorage.setItem('boendekostnad_houses', JSON.stringify(houses));
-    $('housePrice').value = '2500000';
-    $('houseLtv').value = '85';
-    $('houseBrf').value = '';
-    $('houseDrift').value = '';
-    $('houseName').value = '';
-    $('housePrice').focus();
     updateLtvPreview();
     render();
+    $('housePrice').focus();
 }
 
 function removeHouse(i) {
