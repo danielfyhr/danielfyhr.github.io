@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boendekostnadskalkylator</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f5f7; color: #1d1d1f; line-height: 1.5; }
+        .container { max-width: 1100px; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 1.8rem; margin-bottom: 8px; }
+        h2 { font-size: 1.3rem; margin: 24px 0 12px; color: #333; }
+
+        .rate-bar { background: #fff; border-radius: 14px; padding: 18px 24px; margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08); display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+        .rate-bar label { font-weight: 600; font-size: 1rem; white-space: nowrap; }
+        .rate-bar input[type=range] { flex: 1; min-width: 180px; accent-color: #0071e3; }
+        .rate-bar .rate-val { font-size: 1.4rem; font-weight: 700; color: #0071e3; min-width: 70px; text-align: right; }
+
+        .card { background: #fff; border-radius: 14px; padding: 24px; margin-bottom: 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+        .form-row { display: flex; gap: 16px; flex-wrap: wrap; align-items: end; margin-bottom: 12px; }
+        .form-group { display: flex; flex-direction: column; flex: 1; min-width: 180px; }
+        .form-group label { font-size: .85rem; font-weight: 600; margin-bottom: 4px; color: #555; }
+        .form-group input { padding: 10px 12px; border: 1.5px solid #d2d2d7; border-radius: 8px; font-size: 1rem; }
+        .form-group input:focus { border-color: #0071e3; outline: none; }
+        .form-group input.optional { border-color: #ccc; }
+        .form-group input.optional:focus { border-color: #0071e3; }
+        .btn { padding: 10px 24px; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: .15s; }
+        .btn-primary { background: #0071e3; color: #fff; }
+        .btn-primary:hover { background: #005bb5; }
+        .btn-danger { background: #ff3b30; color: #fff; font-size: .85rem; padding: 6px 12px; border-radius: 6px; }
+        .btn-danger:hover { background: #d92c20; }
+
+        .ltv-row { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 16px; }
+        .ltv-row label { font-size: .85rem; font-weight: 600; color: #555; white-space: nowrap; }
+        .ltv-row input[type=range] { flex: 1; min-width: 160px; max-width: 300px; accent-color: #0071e3; }
+        .ltv-preview { font-size: 1rem; font-weight: 600; color: #0071e3; min-width: 140px; }
+        .ltv-preview .pct { font-size: .85rem; color: #888; }
+
+        .house-list { display: grid; gap: 16px; }
+        .house-card { background: #fff; border-radius: 14px; padding: 20px 24px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+        .house-card .info { flex: 1; min-width: 200px; }
+        .house-card .info h3 { font-size: 1.15rem; margin-bottom: 4px; }
+        .house-card .info .stat { font-size: .85rem; color: #666; }
+        .house-card .costs { text-align: right; }
+        .house-card .costs .big { font-size: 1.35rem; font-weight: 700; color: #1d1d1f; }
+        .house-card .costs .small { font-size: .82rem; color: #666; }
+
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .summary-card { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); text-align: center; }
+        .summary-card .label { font-size: .78rem; color: #888; text-transform: uppercase; letter-spacing: .5px; }
+        .summary-card .value { font-size: 1.5rem; font-weight: 700; margin-top: 4px; }
+
+        .chart-box { background: #fff; border-radius: 14px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,.08); margin-bottom: 24px; }
+        .chart-box canvas { max-height: 340px; }
+
+        table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+        th, td { padding: 10px 12px; text-align: right; border-bottom: 1px solid #eee; }
+        th { background: #f0f0f2; font-weight: 600; color: #555; position: sticky; top: 0; }
+        td:first-child, th:first-child { text-align: left; }
+        tr:hover td { background: #f9f9fb; }
+
+        .hidden { display: none !important; }
+        .note { font-size: .8rem; color: #999; margin-top: 4px; }
+
+        .back-link { display: inline-block; margin-bottom: 16px; font-size: .9rem; color: #0071e3; text-decoration: none; }
+        .back-link:hover { text-decoration: underline; }
+
+        @media (max-width: 600px) {
+            .form-row { flex-direction: column; }
+            .form-group { min-width: 100%; }
+            .rate-bar { flex-direction: column; align-items: stretch; }
+            .ltv-row { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a href="../index.html" class="back-link">← Tillbaka</a>
+    <h1>🏠 Boendekostnadskalkylator</h1>
+    <p class="note">Jämför månadskostnader för olika bostäder. Räntan justeras globalt.</p>
+
+    <div class="rate-bar">
+        <label for="interestRate">Ränta:</label>
+        <input type="range" id="interestRate" min="0" max="10" step="0.1" value="4.5">
+        <span class="rate-val" id="interestRateVal">4,5 %</span>
+    </div>
+
+    <div class="card" id="formCard">
+        <h2>Lägg till bostad</h2>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="houseName">Namn (valfritt)</label>
+                <input type="text" id="houseName" class="optional" placeholder="">
+            </div>
+            <div class="form-group">
+                <label for="housePrice">Pris (kr)</label>
+                <input type="number" id="housePrice" min="0" step="10000" value="2500000">
+            </div>
+        </div>
+
+        <div class="ltv-row">
+            <label>Belåningsgrad:</label>
+            <input type="range" id="houseLtv" min="0" max="100" step="5" value="85">
+            <span class="ltv-preview" id="ltvPreview">
+                <span id="ltvPct">85 %</span> &middot; <span id="ltvKronor">2 125 000 kr</span>
+            </span>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="houseBrf">BRF-avgift / mån (valfritt)</label>
+                <input type="number" id="houseBrf" min="0" step="100" class="optional" placeholder="0">
+            </div>
+            <div class="form-group">
+                <label for="houseDrift">Driftkostnad / mån (valfritt)</label>
+                <input type="number" id="houseDrift" min="0" step="100" class="optional" placeholder="0">
+            </div>
+            <button class="btn btn-primary" onclick="addHouse()" style="align-self:end;">💾 Spara bostad</button>
+        </div>
+        <p class="note" id="formNote"></p>
+    </div>
+
+    <div id="housesSection" class="hidden">
+        <h2>Sparade bostäder</h2>
+        <div class="house-list" id="houseList"></div>
+    </div>
+
+    <div id="summarySection" class="hidden">
+        <h2>Sammanfattning</h2>
+        <div class="summary" id="summaryCards"></div>
+    </div>
+
+    <div id="chartsSection" class="hidden">
+        <h2>Jämförelse</h2>
+        <div class="chart-box"><canvas id="chartMonthly"></canvas></div>
+        <div class="chart-box"><canvas id="chartTotal"></canvas></div>
+    </div>
+
+    <div id="tableSection" class="hidden">
+        <h2>Detaljerad tabell</h2>
+        <div class="chart-box" style="overflow-x:auto;">
+            <table id="detailTable">
+                <thead>
+                    <tr>
+                        <th>Bostad</th>
+                        <th>Pris (kr)</th>
+                        <th>Lån (kr)</th>
+                        <th>Insats (kr)</th>
+                        <th>Ränta</th>
+                        <th>Månadskostnad (kr)</th>
+                        <th>Varav ränta</th>
+                        <th>Varav amortering</th>
+                        <th>BRF / Drift</th>
+                        <th>Totalt betalt (kr)</th>
+                        <th>Ta bort</th>
+                    </tr>
+                </thead>
+                <tbody id="detailBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+let houses = [];
+let interestRate = 4.5;
+const LOAN_TERM_YEARS = 50;
+const LOAN_TERM_MONTHS = LOAN_TERM_YEARS * 12;
+
+const $ = id => document.getElementById(id);
+function fmt(n) { return Math.round(n).toLocaleString('sv-SE'); }
+
+function monthlyPayment(principal, annualRate, months) {
+    if (annualRate === 0) return principal / months;
+    const r = annualRate / 100 / 12;
+    return principal * (r * Math.pow(1 + r, months)) / (Math.pow(1 + r, months) - 1);
+}
+
+function calcHouse(d) {
+    const rate = interestRate;
+    const price = d.price;
+    const ltv = d.ltv;
+    const brf = d.brf || 0;
+    const drift = d.drift || 0;
+
+    const loan = price * (ltv / 100);
+    const down = price - loan;
+    let monthCost, interestMonth, amortMonth;
+    if (rate === 0) {
+        monthCost = loan / LOAN_TERM_MONTHS;
+        interestMonth = 0;
+        amortMonth = monthCost;
+    } else {
+        monthCost = monthlyPayment(loan, rate, LOAN_TERM_MONTHS);
+        interestMonth = loan * (rate / 100 / 12);
+        amortMonth = monthCost - interestMonth;
+    }
+    const totalPaid = (monthCost + brf + drift) * LOAN_TERM_MONTHS;
+    const totalInterest = monthCost * LOAN_TERM_MONTHS - loan;
+    return {
+        name: d.name, price, ltv, brf, drift,
+        loan, down, monthCost, interestMonth, amortMonth,
+        brfMonth: brf, driftMonth: drift,
+        totalPaid, totalInterest, rate
+    };
+}
+
+function updateLtvPreview() {
+    const price = parseFloat($('housePrice').value);
+    const ltv = parseFloat($('houseLtv').value);
+    const pct = $('ltvPct');
+    const kronor = $('ltvKronor');
+    pct.textContent = ltv + ' %';
+    if (price > 0 && !isNaN(price)) {
+        kronor.textContent = fmt(price * ltv / 100) + ' kr';
+    } else {
+        kronor.textContent = '—';
+    }
+}
+
+function render() {
+    const rate = interestRate;
+    $('interestRateVal').textContent = rate.toFixed(1).replace('.', ',') + ' %';
+
+    $('formNote').textContent = houses.length > 0
+        ? `(${houses.length} ${houses.length === 1 ? 'bostad' : 'bostäder'} sparade)`
+        : 'Fyll i uppgifter och klicka "Spara bostad"';
+
+    $('houseName').placeholder = `Bostad ${houses.length + 1}`;
+
+    const list = $('houseList');
+    list.innerHTML = '';
+    houses.forEach((h, i) => {
+        const c = calcHouse(h);
+        const extras = [];
+        if (c.brfMonth > 0) extras.push(`BRF ${fmt(c.brfMonth)}`);
+        if (c.driftMonth > 0) extras.push(`Drift ${fmt(c.driftMonth)}`);
+        const extraStr = extras.length ? extras.join(' · ') : '<span style="color:#aaa">Inga extra kostnader</span>';
+        const div = document.createElement('div');
+        div.className = 'house-card';
+        div.innerHTML = `
+            <div class="info">
+                <h3>${c.name}</h3>
+                <div class="stat">Pris: ${fmt(c.price)} kr · Belåning: ${c.ltv}%</div>
+                <div class="stat">Lån: ${fmt(c.loan)} kr · Insats: ${fmt(c.down)} kr</div>
+                <div class="stat">${extraStr}</div>
+            </div>
+            <div class="costs">
+                <div class="big">${fmt(c.monthCost + c.brfMonth + c.driftMonth)} kr/mån</div>
+                <div class="small">ränta ${fmt(c.interestMonth)} · amortering ${fmt(c.amortMonth)}</div>
+            </div>
+            <button class="btn btn-danger" onclick="removeHouse(${i})">✕</button>
+        `;
+        list.appendChild(div);
+    });
+    $('housesSection').classList.toggle('hidden', houses.length === 0);
+
+    const sum = $('summaryCards');
+    sum.innerHTML = '';
+    if (houses.length >= 1) {
+        const all = houses.map(h => calcHouse(h));
+        const totalMonth = all.reduce((s, c) => s + c.monthCost + c.brfMonth + c.driftMonth, 0);
+        const totalLoan = all.reduce((s, c) => s + c.loan, 0);
+        const totalPrice = all.reduce((s, c) => s + c.price, 0);
+        const totalInterest = all.reduce((s, c) => s + c.totalInterest, 0);
+        const totalBrf = all.reduce((s, c) => s + c.brfMonth, 0);
+        const totalDrift = all.reduce((s, c) => s + c.driftMonth, 0);
+
+        [
+            ['Totalt antal bostäder', houses.length, '#1d1d1f'],
+            ['Sammanlagt pris', fmt(totalPrice) + ' kr', '#30d158'],
+            ['Sammanlagt lån', fmt(totalLoan) + ' kr', '#0071e3'],
+            ['Månadskostnad (låneränta)', fmt(totalMonth) + ' kr/mån', '#ff9500'],
+            ['Sammanlagd BRF-avgift', fmt(totalBrf) + ' kr/mån', '#64d2ff'],
+            ['Sammanlagd driftkostnad', fmt(totalDrift) + ' kr/mån', '#af52de'],
+            ['Total räntekostnad (50 år)', fmt(totalInterest) + ' kr', '#ff3b30'],
+        ].forEach(([label, value, color]) => {
+            const d = document.createElement('div');
+            d.className = 'summary-card';
+            d.innerHTML = `<div class="label">${label}</div><div class="value" style="color:${color}">${value}</div>`;
+            sum.appendChild(d);
+        });
+        $('summarySection').classList.remove('hidden');
+    } else {
+        $('summarySection').classList.add('hidden');
+    }
+
+    const tbody = $('detailBody');
+    tbody.innerHTML = '';
+    houses.forEach(h => {
+        const c = calcHouse(h);
+        const extras = `${c.brfMonth > 0 ? fmt(c.brfMonth) : '—'} / ${c.driftMonth > 0 ? fmt(c.driftMonth) : '—'}`;
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+            <td>${c.name}</td>
+            <td>${fmt(c.price)}</td>
+            <td>${fmt(c.loan)}</td>
+            <td>${fmt(c.down)}</td>
+            <td>${c.rate.toFixed(1)} %</td>
+            <td><strong>${fmt(c.monthCost + c.brfMonth + c.driftMonth)}</strong></td>
+            <td>${fmt(c.interestMonth)}</td>
+            <td>${fmt(c.amortMonth)}</td>
+            <td>${extras}</td>
+            <td>${fmt(c.totalPaid)}</td>
+            <td><button class="btn btn-danger" onclick="removeHouse(${houses.indexOf(h)})">✕</button></td>
+        `;
+        tbody.appendChild(tr);
+    });
+    $('tableSection').classList.toggle('hidden', houses.length === 0);
+
+    const chartsSec = $('chartsSection');
+    chartsSec.classList.toggle('hidden', houses.length < 2);
+
+    if (houses.length >= 2) {
+        const all = houses.map(h => calcHouse(h));
+        if (window._chartMonthly) window._chartMonthly.destroy();
+        if (window._chartTotal) window._chartTotal.destroy();
+
+        const colors = ['#0071e3', '#ff9500', '#30d158', '#ff3b30', '#af52de', '#64d2ff'];
+
+        window._chartMonthly = new Chart($('chartMonthly'), {
+            type: 'bar',
+            data: {
+                labels: houses.map(h => h.name),
+                datasets: [
+                    { label: 'Räntekostnad/månad', data: all.map(c => Math.round(c.interestMonth)), backgroundColor: colors[0] + '99', borderColor: colors[0], borderWidth: 1 },
+                    { label: 'Amortering/månad', data: all.map(c => Math.round(c.amortMonth)), backgroundColor: colors[1] + '99', borderColor: colors[1], borderWidth: 1 },
+                    { label: 'BRF-avgift/månad', data: all.map(c => Math.round(c.brfMonth)), backgroundColor: colors[4] + '99', borderColor: colors[4], borderWidth: 1 },
+                    { label: 'Driftkostnad/månad', data: all.map(c => Math.round(c.driftMonth)), backgroundColor: colors[5] + '99', borderColor: colors[5], borderWidth: 1 },
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { title: { display: true, text: 'Månadskostnad per bostad' } },
+                scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => fmt(v) } } }
+            }
+        });
+
+        window._chartTotal = new Chart($('chartTotal'), {
+            type: 'bar',
+            data: {
+                labels: houses.map(h => h.name),
+                datasets: [
+                    { label: 'Insats', data: all.map(c => Math.round(c.down)), backgroundColor: colors[2] + '88', borderColor: colors[2], borderWidth: 1 },
+                    { label: 'Total ränta (50 år)', data: all.map(c => Math.round(c.totalInterest)), backgroundColor: colors[3] + '88', borderColor: colors[3], borderWidth: 1 },
+                ]
+            },
+            options: {
+                responsive: true,
+                plugins: { title: { display: true, text: 'Livstidskostnad per bostad (50 år)' } },
+                scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { callback: v => fmt(v) } } }
+            }
+        });
+    }
+}
+
+function addHouse() {
+    const name = $('houseName').value.trim();
+    const price = parseFloat($('housePrice').value);
+    const ltv = parseFloat($('houseLtv').value);
+    const brf = parseFloat($('houseBrf').value) || 0;
+    const drift = parseFloat($('houseDrift').value) || 0;
+
+    if (isNaN(price) || price <= 0) { $('housePrice').focus(); return; }
+    if (isNaN(ltv) || ltv < 0 || ltv > 100) { $('houseLtv').focus(); return; }
+
+    houses.push({ name: name || `Bostad ${houses.length + 1}`, price, ltv, brf, drift });
+
+    localStorage.setItem('boendekostnad_houses', JSON.stringify(houses));
+    $('housePrice').value = '2500000';
+    $('houseLtv').value = '85';
+    $('houseBrf').value = '';
+    $('houseDrift').value = '';
+    $('houseName').value = '';
+    $('housePrice').focus();
+    updateLtvPreview();
+    render();
+}
+
+function removeHouse(i) {
+    houses.splice(i, 1);
+    localStorage.setItem('boendekostnad_houses', JSON.stringify(houses));
+    render();
+}
+
+$('interestRate').addEventListener('input', e => {
+    interestRate = parseFloat(e.target.value);
+    localStorage.setItem('boendekostnad_interest', interestRate);
+    render();
+});
+$('houseLtv').addEventListener('input', updateLtvPreview);
+$('housePrice').addEventListener('input', updateLtvPreview);
+$('housePrice').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
+$('houseLtv').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
+$('houseName').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
+$('houseBrf').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
+$('houseDrift').addEventListener('keydown', e => { if (e.key === 'Enter') addHouse(); });
+
+interestRate = parseFloat(localStorage.getItem('boendekostnad_interest') || '4.5');
+houses = JSON.parse(localStorage.getItem('boendekostnad_houses') || '[]');
+updateLtvPreview();
+render();
+$('housePrice').focus();
+</script>
+</body>
+</html>
