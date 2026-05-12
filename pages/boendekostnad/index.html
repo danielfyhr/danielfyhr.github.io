@@ -237,14 +237,13 @@ function calcHouse(d) {
         amortMonth = monthCost - interestMonth;
     }
     const brfDebtShare = sqm * brfDebt;
-    const brfInterestMonth = brfDebtShare * (rate / 100 / 12);
-    const totalPaid = (monthCost + brf + drift + brfInterestMonth + other) * LOAN_TERM_MONTHS;
-    const totalInterest = monthCost * LOAN_TERM_MONTHS - loan + brfInterestMonth * LOAN_TERM_MONTHS;
+    const totalPaid = (monthCost + brf + drift + other) * LOAN_TERM_MONTHS;
+    const totalInterest = monthCost * LOAN_TERM_MONTHS - loan + brfDebtShare * (rate / 100 / 12) * LOAN_TERM_MONTHS;
     const requiredAmortPct = ltv > 70 ? 2 : ltv > 50 ? 1 : 0;
     return {
         name: d.name, price, ltv, brf, drift, sqm, brfDebt, other, customAmortPct,
         loan, down, monthCost, interestMonth, amortMonth,
-        brfMonth: brf, driftMonth: drift, brfDebtShare, brfInterestMonth,
+        brfMonth: brf, driftMonth: drift, brfDebtShare,
         otherMonth: other,
         totalPaid, totalInterest, rate,
         amortPct: (amortPct * 100).toFixed(2), requiredAmortPct
@@ -279,9 +278,8 @@ const list = $('houseList');
     houses.forEach((h, i) => {
         const c = calcHouse(h);
         const extras = [];
-        if (c.brfMonth > 0) extras.push(`BRF ${fmt(c.brfMonth)}`);
+        if (c.brfMonth > 0 || c.brfDebtShare > 0) extras.push(`BRF ${fmt(c.brfMonth + c.brfDebtShare)}`);
         if (c.driftMonth > 0) extras.push(`Drift ${fmt(c.driftMonth)}`);
-        if (c.brfDebtShare > 0) extras.push(`Andel föreningslån ${fmt(c.brfDebtShare)}`);
         if (c.otherMonth > 0) extras.push(`Övrigt ${fmt(c.otherMonth)}`);
         const extraStr = extras.length ? extras.join(' · ') : '<span style="color:#aaa">Inga extra kostnader</span>';
         const currentAmort = c.customAmortPct !== null ? c.customAmortPct : c.requiredAmortPct;
@@ -298,8 +296,8 @@ const list = $('houseList');
                 <div class="stat">${extraStr}</div>
             </div>
             <div class="costs">
-                <div class="big">${fmt(c.monthCost + c.brfMonth + c.driftMonth + c.brfInterestMonth + c.otherMonth)} kr/mån</div>
-                <div class="small">ränta ${fmt(c.interestMonth)} · amortering ${fmt(c.amortMonth)}${c.brfInterestMonth > 0 ? ' · förening ' + fmt(c.brfInterestMonth) : ''}</div>
+                <div class="big">${fmt(c.monthCost + c.brfMonth + c.driftMonth + c.otherMonth)} kr/mån</div>
+                <div class="small">ränta ${fmt(c.interestMonth)} · amortering ${fmt(c.amortMonth)}</div>
                 <div class="amort-row">
                     <label>Amortering:</label>
                     <input type="range" min="0" max="100" step="0.5" value="${currentAmort}" data-idx="${i}" data-amort>
@@ -317,7 +315,7 @@ const list = $('houseList');
     tbody.innerHTML = '';
     houses.forEach(h => {
         const c = calcHouse(h);
-        const extras = `${c.brfMonth > 0 ? fmt(c.brfMonth) : '—'} / ${c.driftMonth > 0 ? fmt(c.driftMonth) : '—'} / ${c.otherMonth > 0 ? fmt(c.otherMonth) : '—'}`;
+        const extras = `${c.brfMonth > 0 || c.brfDebtShare > 0 ? fmt(c.brfMonth + c.brfDebtShare) : '—'} / ${c.driftMonth > 0 ? fmt(c.driftMonth) : '—'} / ${c.otherMonth > 0 ? fmt(c.otherMonth) : '—'}`;
         const tr = document.createElement('tr');
         tr.innerHTML = `
             <td>${c.name}</td>
@@ -328,7 +326,7 @@ const list = $('houseList');
             <td>${c.ltv} %</td>
             <td>${c.customAmortPct !== null ? c.customAmortPct : '—'}</td>
             <td>${c.brfDebtShare > 0 ? fmt(c.brfDebtShare) : '—'}</td>
-            <td><strong>${fmt(c.monthCost + c.brfMonth + c.driftMonth + c.brfInterestMonth + c.otherMonth)}</strong></td>
+            <td><strong>${fmt(c.monthCost + c.brfMonth + c.driftMonth + c.otherMonth)}</strong></td>
             <td>${fmt(c.interestMonth)}</td>
             <td>${fmt(c.amortMonth)}</td>
             <td>${extras}</td>
@@ -356,9 +354,8 @@ const list = $('houseList');
                 datasets: [
                     { label: 'Räntekostnad/månad', data: all.map(c => Math.round(c.interestMonth)), backgroundColor: colors[0] + '99', borderColor: colors[0], borderWidth: 1 },
                     { label: 'Amortering/månad', data: all.map(c => Math.round(c.amortMonth)), backgroundColor: colors[1] + '99', borderColor: colors[1], borderWidth: 1 },
-                    { label: 'BRF-avgift/månad', data: all.map(c => Math.round(c.brfMonth)), backgroundColor: colors[4] + '99', borderColor: colors[4], borderWidth: 1 },
+                    { label: 'BRF-avgift/månad', data: all.map(c => Math.round(c.brfMonth + c.brfDebtShare)), backgroundColor: colors[4] + '99', borderColor: colors[4], borderWidth: 1 },
                     { label: 'Driftkostnad/månad', data: all.map(c => Math.round(c.driftMonth)), backgroundColor: colors[5] + '99', borderColor: colors[5], borderWidth: 1 },
-                    { label: 'Föreningslån ränta/månad', data: all.map(c => Math.round(c.brfInterestMonth)), backgroundColor: '#ff9f0a99', borderColor: '#ff9f0a', borderWidth: 1 },
                     { label: 'Övrigt/månad', data: all.map(c => Math.round(c.otherMonth)), backgroundColor: '#8e8e9399', borderColor: '#8e8e93', borderWidth: 1 },
                 ]
             },
